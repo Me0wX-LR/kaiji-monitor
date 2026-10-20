@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaiji monitor</title>
+<link rel="icon" href="kaiji-icon.png">
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f4f0ea; color: #1c1916; font: 18px/1.45 "Segoe UI", sans-serif; }
+  main { max-width: 420px; padding: 24px; text-align: center; }
+  img { width: 96px; height: 96px; image-rendering: pixelated; }
+  h1 { font-size: 28px; letter-spacing: -0.03em; margin: 12px 0 8px; }
+  p { color: #6d645c; }
+  a { color: #855331; }
+</style>
+</head>
+<body>
+<main>
+  <img src="kaiji-icon.png" alt="">
+  <h1>Kaiji monitor</h1>
+  <p id="status">Checking whether the live monitor is up…</p>
+</main>
+<script>
+const HOME = location.href.split("#")[0];
+async function currentTunnel() {
+  const response = await fetch("tunnel.json?ts=" + Date.now(), { cache: "no-store" });
+  if (!response.ok) return "";
+  const data = await response.json();
+  return (data.url || "").replace(/\/$/, "");
+}
+async function tunnelIsUp(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    await fetch(url + "/?ts=" + Date.now(), { mode: "no-cors", cache: "no-store", signal: controller.signal });
+    return true;
+  } catch (error) {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function go() {
+  const status = document.getElementById("status");
+  let url = "";
+  try {
+    url = await currentTunnel();
+  } catch (error) {
+    url = "";
+  }
+  if (!url) {
+    status.textContent = "No live monitor is published. Stay on this page.";
+    return;
+  }
+  const up = await tunnelIsUp(url);
+  if (up) {
+    status.textContent = "The monitor is up. Opening it…";
+    location.replace(url);
+    return;
+  }
+  status.innerHTML = "The temporary monitor link is down, so you stay here. This page will try again shortly.";
+}
+go();
+setInterval(go, 20000);
+</script>
+</body>
+</html>
